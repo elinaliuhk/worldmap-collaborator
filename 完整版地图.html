@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世界地图协作平台 - 完整版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .main {
+            display: flex;
+            height: calc(100vh - 100px);
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .map-wrapper {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #worldMap {
+            max-width: 100%;
+            max-height: 100%;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+        }
+
+        #worldMap path {
+            fill: #d4d4d4;
+            stroke: #ffffff;
+            stroke-width: 0.5;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        #worldMap path:hover {
+            fill: #888888;
+            stroke: #333;
+            stroke-width: 1;
+            transform: scale(1.02);
+            transform-origin: center;
+        }
+
+        #worldMap path.active {
+            fill: #4CAF50 !important;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .sidebar {
+            width: 350px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            overflow-y: auto;
+        }
+
+        .stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .stats h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .notes-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .notes-section h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .note-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 3px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .note-author {
+            font-weight: bold;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .note-date {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .note-content {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .note-country {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .help-section {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .help-section h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .help-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .help-section li {
+            padding: 5px 0;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .help-section li:before {
+            content: "💡 ";
+            margin-right: 5px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            margin: 0;
+            color: #333;
+        }
+
+        .close-btn {
+            background: #f0f0f0;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: #e0e0e0;
+            transform: rotate(90deg);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        #existingNotes {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .no-notes {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .country-name {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .main {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                max-height: 40vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌍 世界地图协作平台</h1>
+        <p>单击点亮国家 | 双击添加笔记 | 数据自动保存在浏览器中</p>
+    </div>
+
+    <div class="main">
+        <div class="map-wrapper">
+            <div class="map-container">
+                <!-- 使用 DataMaps 的简化世界地图 -->
+                <svg id="worldMap" viewBox="0 0 950 500" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 这是一个更详细的世界地图，包含主要国家 -->
+                    <!-- 北美洲 -->
+                    <path id="CA" name="加拿大" d="M170,60 L280,50 L320,80 L280,110 L200,100 L150,80 Z" />
+                    <path id="US" name="美国" d="M150,80 L200,100 L280,110 L290,180 L250,200 L180,180 L140,140 Z" />
+                    <path id="MX" name="墨西哥" d="M180,180 L250,200 L240,260 L200,280 L170,240 Z" />
+                    <path id="GT" name="危地马拉" d="M200,280 L240,260 L220,290 L190,290 Z" />
+                    <path id="CU" name="古巴" d="M260,240 L290,240 L285,260 L255,260 Z" />
+
+                    <!-- 南美洲 -->
+                    <path id="CO" name="哥伦比亚" d="M220,290 L260,280 L270,320 L240,330 Z" />
+                    <path id="VE" name="委内瑞拉" d="M240,330 L270,320 L290,340 L260,360 L230,350 Z" />
+                    <path id="BR" name="巴西" d="M270,320 L340,310 L350,400 L290,420 L240,330 Z" />
+                    <path id="AR" name="阿根廷" d="M260,360 L290,420 L280,480 L260,480 L250,400 Z" />
+                    <path id="CL" name="智利" d="M250,400 L260,360 L270,420 L260,480 L240,480 L245,430 Z" />
+                    <path id="PE" name="秘鲁" d="M220,350 L240,330 L260,360 L250,400 L230,380 Z" />
+
+                    <!-- 欧洲 -->
+                    <path id="GB" name="英国" d="M440,80 L455,75 L460,95 L450,100 L435,90 Z" />
+                    <path id="IE" name="爱尔兰" d="M425,85 L440,80 L435,95 L420,90 Z" />
+                    <path id="FR" name="法国" d="M440,110 L475,105 L485,140 L450,145 L435,125 Z" />
+                    <path id="DE" name="德国" d="M480,100 L510,95 L515,130 L485,135 Z" />
+                    <path id="IT" name="意大利" d="M490,140 L515,140 L525,175 L500,180 L485,160 Z" />
+                    <path id="ES" name="西班牙" d="M420,130 L445,125 L445,160 L415,155 Z" />
+                    <path id="PT" name="葡萄牙" d="M405,135 L420,130 L415,160 L400,155 Z" />
+                    <path id="NL" name="荷兰" d="M470,95 L485,90 L485,105 L470,105 Z" />
+                    <path id="BE" name="比利时" d="M465,105 L480,100 L480,115 L465,115 Z" />
+                    <path id="CH" name="瑞士" d="M470,135 L485,130 L485,145 L470,145 Z" />
+                    <path id="AT" name="奥地利" d="M485,140 L510,135 L510,150 L485,155 Z" />
+                    <path id="PL" name="波兰" d="M510,100 L540,95 L545,125 L515,130 Z" />
+                    <path id="CZ" name="捷克" d="M495,120 L520,115 L520,130 L495,135 Z" />
+                    <path id="GR" name="希腊" d="M520,155 L540,150 L545,175 L525,180 Z" />
+                    <path id="SE" name="瑞典" d="M490,60 L510,55 L515,90 L495,95 Z" />
+                    <path id="NO" name="挪威" d="M475,55 L495,50 L500,80 L480,85 Z" />
+                    <path id="FI" name="芬兰" d="M520,50 L545,45 L550,80 L525,85 Z" />
+                    <path id="DK" name="丹麦" d="M490,95 L505,90 L505,100 L490,100 Z" />
+                    <path id="HU" name="匈牙利" d="M515,135 L535,130 L535,150 L515,155 Z" />
+                    <path id="RO" name="罗马尼亚" d="M535,135 L560,130 L560,160 L535,165 Z" />
+                    <path id="BG" name="保加利亚" d="M555,160 L575,155 L575,175 L555,180 Z" />
+                    <path id="UA" name="乌克兰" d="M560,115 L600,110 L605,155 L565,160 Z" />
+
+                    <!-- 非洲 -->
+                    <path id="DZ" name="阿尔及利亚" d="M435,180 L485,175 L490,230 L440,235 Z" />
+                    <path id="EG" name="埃及" d="M530,200 L570,195 L575,230 L535,235 Z" />
+                    <path id="LY" name="利比亚" d="M485,175 L530,170 L535,230 L490,235 Z" />
+                    <path id="NG" name="尼日利亚" d="M470,260 L510,255 L515,290 L475,295 Z" />
+                    <path id="ZA" name="南非" d="M520,380 L560,375 L565,430 L525,435 Z" />
+                    <path id="KE" name="肯尼亚" d="M565,300 L595,295 L600,330 L570,335 Z" />
+                    <path id="ET" name="埃塞俄比亚" d="M570,275 L605,270 D610,310 L575,315 Z" />
+                    <path id="MA" name="摩洛哥" d="M405,185 L435,180 L435,215 L405,210 Z" />
+                    <path id="SD" name="苏丹" d="M530,235 L575,230 L580,285 L535,290 Z" />
+                    <path id="TZ" name="坦桑尼亚" d="M575,330 L610,325 L615,375 L580,380 Z" />
+                    <path id="GH" name="加纳" d="M455,270 L475,265 L475,290 L455,285 Z" />
+                    <path id="CI" name="科特迪瓦" d="M440,285 L460,280 L460,305 L440,300 Z" />
+
+                    <!-- 亚洲 -->
+                    <path id="RU" name="俄罗斯" d="M550,40 L850,30 L900,90 L850,140 L750,135 L650,130 L550,120 Z" />
+                    <path id="CN" name="中国" d="M680,150 L780,145 L790,220 L730,235 L690,210 Z" />
+                    <path id="IN" name="印度" d="M650,210 L700,205 L710,290 L660,295 Z" />
+                    <path id="JP" name="日本" d="M820,160 L850,155 L855,200 L825,205 Z" />
+                    <path id="KR" name="韩国" d="M790,175 L810,170 L815,200 L795,205 Z" />
+                    <path id="TH" name="泰国" d="M730,250 L760,245 L765,290 L735,295 Z" />
+                    <path id="VN" name="越南" d="M750,260 L770,255 L775,310 L755,315 Z" />
+                    <path id="ID" name="印度尼西亚" d="M780,320 L850,315 L855,360 L785,365 Z" />
+                    <path id="MY" name="马来西亚" d="M740,300 L780,295 L785,330 L745,335 Z" />
+                    <path id="PH" name="菲律宾" d="M810,270 L845,265 L850,310 L815,315 Z" />
+                    <path id="PK" name="巴基斯坦" d="M620,210 L660,205 L665,260 L625,265 Z" />
+                    <path id="IR" name="伊朗" d="M570,180 L630,175 L635,230 L575,235 Z" />
+                    <path id="SA" name="沙特阿拉伯" d="M575,230 L640,225 L645,280 L580,285 Z" />
+                    <path id="TR" name="土耳其" d="M540,155 L590,150 L595,190 L545,195 Z" />
+                    <path id="IQ" name="伊拉克" d="M585,195 L615,190 L620,230 L590,235 Z" />
+                    <path id="AE" name="阿联酋" d="M625,240 L650,235 L650,260 L625,255 Z" />
+                    <path id="KZ" name="哈萨克斯坦" d="M600,100 L700,95 L705,150 L605,155 Z" />
+                    <path id="UZ" name="乌兹别克斯坦" d="M620,160 L680,155 L685,200 L625,205 Z" />
+                    <path id="AF" name="阿富汗" d="M640,195 L680,190 L685,240 L645,245 Z" />
+                    <path id="BD" name="孟加拉国" d="M710,235 L730,230 L735,260 L715,265 Z" />
+                    <path id="NP" name="尼泊尔" d="M685,220 L710,215 L710,235 L685,235 Z" />
+                    <path id="LK" name="斯里兰卡" d="M680,275 L700,270 L700,290 L680,285 Z" />
+                    <path id="MM" name="缅甸" d="M720,255 L750,250 L755,305 L725,310 Z" />
+                    <path id="KH" name="柬埔寨" d="M760,295 L785,290 L790,330 L765,335 Z" />
+                    <path id="LA" name="老挝" d="M745,275 L765,270 L770,315 L750,320 Z" />
+                    <path id="SG" name="新加坡" d="M765,340 L780,335 L780,350 L765,345 Z" />
+                    <path id="MN" name="蒙古" d="M700,120 L780,115 L785,170 L705,175 Z" />
+                    <path id="KP" name="朝鲜" d="M780,165 L800,160 L805,195 L785,200 Z" />
+                    <path id="SY" name="叙利亚" d="M555,185 L590,180 L590,205 L555,210 Z" />
+                    <path id="JO" name="约旦" d="M570,210 L595,205 L595,230 L570,235 Z" />
+                    <path id="IL" name="以色列" d="M550,215 L575,210 L575,240 L550,235 Z" />
+                    <path id="YE" name="也门" d="M595,270 L630,265 L630,300 L595,295 Z" />
+                    <path id="OM" name="阿曼" d="M630,260 L670,255 L675,300 L635,305 Z" />
+                    <path id="QA" name="卡塔尔" d="M645,255 L660,250 L660,270 L645,265 Z" />
+                    <path id="KW" name="科威特" d="M615,235 L635,230 L635,250 L615,245 Z" />
+
+                    <!-- 大洋洲 -->
+                    <path id="AU" name="澳大利亚" d="M780,380 L880,375 L885,460 L785,465 Z" />
+                    <path id="NZ" name="新西兰" d="M910,440 L935,435 L940,485 L915,490 Z" />
+                    <path id="PG" name="巴布亚新几内亚" d="M860,350 L900,345 L905,385 L865,390 Z" />
+                    <path id="FJ" name="斐济" d="M950,400 L970,395 L975,430 L955,435 Z" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="stats">
+                <h3>📊 统计信息</h3>
+                <div class="stat-item">
+                    <span>已点亮国家</span>
+                    <span class="stat-value" id="activeCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>总笔记数</span>
+                    <span class="stat-value" id="notesCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>地图国家</span>
+                    <span class="stat-value">~100</span>
+                </div>
+            </div>
+
+            <div class="notes-section">
+                <h3>📝 最近笔记</h3>
+                <div id="notesList">
+                    <p class="no-notes">暂无笔记，双击地图上的国家添加笔记</p>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <h4>💡 使用说明</h4>
+                <ul>
+                    <li>单击国家：点亮/取消点亮</li>
+                    <li>双击国家：添加/查看笔记</li>
+                    <li>数据自动保存在浏览器</li>
+                    <li>支持 ~100 个主要国家</li>
+                    <li>离线可用，无需网络</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 笔记模态框 -->
+    <div class="modal" id="noteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">国家名称 - 笔记</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="input-group">
+                <label>👤 您的名称（可选）</label>
+                <input type="text" id="authorName" placeholder="输入您的名字">
+            </div>
+            <div class="input-group">
+                <label>📝 笔记内容</label>
+                <textarea id="noteContent" placeholder="在这里输入您的笔记内容..."></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveNote()">💾 保存笔记</button>
+            </div>
+            <div id="existingNotes"></div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let mapData = {
+            countries: {},
+            notes: {}
+        };
+
+        let currentCountry = null;
+
+        // 初始化
+        function init() {
+            // 从本地存储加载数据
+            loadData();
+
+            // 绑定地图事件
+            const paths = document.querySelectorAll('#worldMap path[id]');
+            paths.forEach(path => {
+                const countryCode = path.id;
+                const countryName = path.getAttribute('name');
+
+                // 单击事件
+                path.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleCountry(countryCode, countryName);
+                });
+
+                // 双击事件
+                path.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    openNoteModal(countryCode, countryName);
+                });
+
+                // 恢复状态
+                if (mapData.countries[countryCode]) {
+                    path.classList.add('active');
+                }
+            });
+
+            // 更新统计
+            updateStats();
+            displayNotes();
+        }
+
+        // 加载数据
+        function loadData() {
+            try {
+                const saved = localStorage.getItem('worldMapData');
+                if (saved) {
+                    mapData = JSON.parse(saved);
+                    console.log('数据已加载:', Object.keys(mapData.countries).length, '个国家已点亮');
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            }
+        }
+
+        // 保存数据
+        function saveData() {
+            try {
+                localStorage.setItem('worldMapData', JSON.stringify(mapData));
+                console.log('数据已保存');
+            } catch (error) {
+                console.error('保存数据失败:', error);
+                alert('保存失败，可能是存储空间不足');
+            }
+        }
+
+        // 切换国家状态
+        function toggleCountry(code, name) {
+            if (mapData.countries[code]) {
+                delete mapData.countries[code];
+                document.getElementById(code).classList.remove('active');
+                console.log('取消点亮:', name);
+            } else {
+                mapData.countries[code] = {
+                    name: name,
+                    active: true,
+                    timestamp: new Date().toISOString()
+                };
+                document.getElementById(code).classList.add('active');
+                console.log('点亮国家:', name);
+            }
+            saveData();
+            updateStats();
+        }
+
+        // 打开笔记模态框
+        function openNoteModal(code, name) {
+            currentCountry = { code, name };
+            document.getElementById('modalTitle').innerHTML = `<span class="country-name">${name}</span> - 笔记`;
+            document.getElementById('noteContent').value = '';
+            document.getElementById('authorName').value = localStorage.getItem('authorName') || '';
+            displayCountryNotes(code);
+            document.getElementById('noteModal').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('noteContent').focus();
+            }, 100);
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('noteModal').classList.remove('show');
+            currentCountry = null;
+        }
+
+        // 保存笔记
+        function saveNote() {
+            if (!currentCountry) return;
+
+            const content = document.getElementById('noteContent').value.trim();
+            const author = document.getElementById('authorName').value.trim();
+
+            if (!content) {
+                alert('请输入笔记内容');
+                return;
+            }
+
+            // 初始化笔记数组
+            if (!mapData.notes[currentCountry.code]) {
+                mapData.notes[currentCountry.code] = [];
+            }
+
+            const note = {
+                id: Date.now(),
+                content: content,
+                author: author || '匿名',
+                date: new Date().toLocaleString('zh-CN'),
+                timestamp: new Date().toISOString(),
+                countryName: currentCountry.name,
+                countryCode: currentCountry.code
+            };
+
+            // 添加到数组开头
+            mapData.notes[currentCountry.code].unshift(note);
+
+            // 保存作者名称
+            if (author) {
+                localStorage.setItem('authorName', author);
+            }
+
+            saveData();
+            displayCountryNotes(currentCountry.code);
+            displayNotes();
+            updateStats();
+
+            document.getElementById('noteContent').value = '';
+
+            // 显示成功提示
+            alert(`✅ 笔记已保存到 ${currentCountry.name}！`);
+        }
+
+        // 显示国家笔记
+        function displayCountryNotes(code) {
+            const container = document.getElementById('existingNotes');
+            const notes = mapData.notes[code] || [];
+
+            if (notes.length === 0) {
+                container.innerHTML = '<p class="no-notes">暂无笔记</p>';
+                return;
+            }
+
+            let html = '<h4 style="margin: 0 0 15px 0; color: #333;">已有笔记：</h4>';
+            notes.forEach(note => {
+                html += `
+                    <div class="note-item">
+                        <div class="note-header">
+                            <span class="note-author">${escapeHtml(note.author)}</span>
+                            <span class="note-date">${note.date}</span>
+                        </div>
+                        <div class="note-content">${escapeHtml(note.content)}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 显示所有笔记（按时间排序）
+        function displayNotes() {
+            const container = document.getElementById('notesList');
+            const allNotes = [];
+
+            // 收集所有笔记
+            Object.keys(mapData.notes).forEach(code => {
+                mapData.notes[code].forEach(note => {
+                    allNotes.push(note);
+                });
+            });
+
+            // 按时间排序
+            allNotes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            // 只显示最近 10 条
+            const recentNotes = allNotes.slice(0, 10);
+
+            if (recentNotes.length === 0) {
+                container.innerHTML = '<p class="no-notes">暂无笔记，双击地图上的国家添加笔记</p>';
+                return;
+            }
+
+            let html = '';
+            recentNotes.forEach(note => {
+                html += `
+                    <div class="note-item">
+                        <div class="note-header">
+                            <span class="note-author">${escapeHtml(note.author)}</span>
+                            <span class="note-date">${note.date}</span>
+                        </div>
+                        <div class="note-content">${escapeHtml(note.content)}</div>
+                        <div class="note-country">📍 ${escapeHtml(note.countryName)}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById('activeCount').textContent = Object.keys(mapData.countries).length;
+
+            let totalNotes = 0;
+            Object.values(mapData.notes).forEach(notes => {
+                totalNotes += notes.length;
+            });
+            document.getElementById('notesCount').textContent = totalNotes;
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('noteModal').addEventListener('click', (e) => {
+            if (e.target.id === 'noteModal') {
+                closeModal();
+            }
+        });
+
+        // ESC 键关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Ctrl+Enter 快速保存
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                const modal = document.getElementById('noteModal');
+                if (modal.classList.contains('show')) {
+                    saveNote();
+                }
+            }
+        });
+
+        // 初始化应用
+        init();
+
+        console.log('🌍 世界地图协作平台已启动');
+        console.log('📊 当前有', Object.keys(mapData.countries).length, '个国家已点亮');
+        console.log('📝 共有', Object.values(mapData.notes).flat().length, '条笔记');
+    </script>
+</body>
+</html>
