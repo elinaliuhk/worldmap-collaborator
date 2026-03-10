@@ -1105,21 +1105,63 @@
             }
 
             let html = '<h4 style="margin: 0 0 15px 0;">已有笔记：</h4>';
-            notes.forEach(note => {
+            notes.forEach((note, index) => {
                 const author = note.author_name || '匿名';
                 const date = note.date || new Date(note.created_at).toLocaleString('zh-CN');
                 html += `
-                    <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #667eea;">
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #667eea; position: relative;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                             <strong>${escapeHtml(author)}</strong>
                             <span style="font-size: 11px; color: #999;">${date}</span>
                         </div>
                         <div style="font-size: 13px; color: #666;">${escapeHtml(note.content)}</div>
+                        <button onclick="deleteNote('${code}', ${index})" style="position: absolute; top: 10px; right: 10px; background: #ff4444; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; opacity: 0.7;">🗑️ 删除</button>
                     </div>
                 `;
             });
 
             container.innerHTML = html;
+        }
+
+        async function deleteNote(countryCode, noteIndex) {
+            if (!confirm('确定要删除这条笔记吗？')) {
+                return;
+            }
+
+            const notes = mapData.notes[countryCode];
+            if (!notes || !notes[noteIndex]) return;
+
+            const noteToDelete = notes[noteIndex];
+
+            // 从本地数据中删除
+            mapData.notes[countryCode].splice(noteIndex, 1);
+
+            if (mapData.notes[countryCode].length === 0) {
+                delete mapData.notes[countryCode];
+            }
+
+            // 如果在线，从数据库删除
+            if (isOnline && supabaseClient && noteToDelete.id) {
+                try {
+                    await supabaseClient
+                        .from('notes')
+                        .delete()
+                        .eq('id', noteToDelete.id);
+                    console.log('✅ 已从云端删除');
+                } catch (error) {
+                    console.error('删除云端笔记失败:', error);
+                }
+            }
+
+            // 保存本地数据
+            saveLocalData();
+
+            // 刷新显示
+            displayCountryNotes(countryCode);
+            displayNotes();
+            updateStats();
+
+            console.log('✅ 笔记已删除');
         }
 
         function displayNotes() {
@@ -1273,6 +1315,7 @@
         window.openModal = openModal;
         window.closeModal = closeModal;
         window.saveNote = saveNote;
+        window.deleteNote = deleteNote;
         window.handleCountryClick = handleCountryClick;
         window.handleCountryDoubleClick = handleCountryDoubleClick;
         window.toggleCountry = toggleCountry;
@@ -1333,4 +1376,7 @@
     </script>
 </body>
 </html>
+
+</html>
+
 
