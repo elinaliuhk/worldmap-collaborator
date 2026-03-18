@@ -99,10 +99,6 @@
             transform-origin: center;
         }
 
-        #worldMap path.active {
-            fill: #4CAF50 !important;
-        }
-
         .sidebar {
             width: 320px;
             background: white;
@@ -353,13 +349,179 @@
                 max-height: 40vh;
             }
         }
+
+        /* ==================== 地图切换器样式 ==================== */
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .current-map-indicator {
+            display: flex;
+            align-items: center;
+        }
+
+        .map-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .map-switcher-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .map-switcher-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .map-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .map-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border: 2px solid transparent;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .map-tab:hover {
+            background: #e8e8e8;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .map-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .map-icon {
+            font-size: 16px;
+        }
+
+        .map-name {
+            font-size: 12px;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .map-switcher-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .map-tabs {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .map-tab {
+                flex: 1;
+                justify-content: center;
+                padding: 8px 12px;
+                font-size: 11px;
+            }
+
+            .map-name {
+                display: none; /* 移动端只显示图标 */
+            }
+        }
+
+        /* 支持CSS变量以动态更新颜色 */
+        :root {
+            --map-primary-color: #FF6B6B;
+        }
+
+        #worldMap path.active {
+            fill: var(--map-primary-color) !important;
+            stroke: #ffffff;
+            stroke-width: 1;
+            filter: drop-shadow(0 0 8px var(--map-primary-color));
+            transition: all 0.3s ease;
+        }
+
+        #worldMap path.active:hover {
+            filter: drop-shadow(0 0 12px var(--map-primary-color));
+            transform: scale(1.02);
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🌍 世界地图协作平台 - 多人实时协作版</h1>
+        <div class="header-title">
+            <h1>🌍 世界地图协作平台 - 多人实时协作版</h1>
+            <div class="current-map-indicator" id="currentMapIndicator">
+                <span class="map-badge" style="background: #FF6B6B;">
+                    🚗 Exhaust PM emission
+                </span>
+            </div>
+        </div>
         <div>
             <span id="statusBadge" class="status-badge status-offline">离线模式</span>
+        </div>
+    </div>
+
+    <!-- 地图切换器 -->
+    <div class="map-switcher-container">
+        <div class="map-switcher-label">🗺️ 选择地图：</div>
+        <div class="map-tabs" id="mapTabs">
+            <button class="map-tab active" data-map-id="exhaust_pm" onclick="switchMap('exhaust_pm')">
+                <span class="map-icon">🚗</span>
+                <span class="map-name">Exhaust PM</span>
+            </button>
+            <button class="map-tab" data-map-id="ev_brake" onclick="switchMap('ev_brake')">
+                <span class="map-icon">🛞</span>
+                <span class="map-name">EV Brake wear</span>
+            </button>
+            <button class="map-tab" data-map-id="ev_tire" onclick="switchMap('ev_tire')">
+                <span class="map-icon">🔘</span>
+                <span class="map-name">EV Tire wear</span>
+            </button>
+            <button class="map-tab" data-map-id="ev_road" onclick="switchMap('ev_road')">
+                <span class="map-icon">🛣️</span>
+                <span class="map-name">EV Road wear</span>
+            </button>
+            <button class="map-tab" data-map-id="ev_dust" onclick="switchMap('ev_dust')">
+                <span class="map-icon">💨</span>
+                <span class="map-name">EV Road dust</span>
+            </button>
         </div>
     </div>
 
@@ -637,11 +799,63 @@
         let realtimeChannels = [];
 
         // ==================== 数据存储 ====================
-        let mapData = {
-            countries: {},
-            notes: {}
+        // 地图配置常量
+        const MAP_CONFIG = {
+            exhaust_pm: {
+                id: 'exhaust_pm',
+                name: 'Exhaust PM emission (only ICEVS)',
+                nameEn: 'Exhaust PM',
+                color: '#FF6B6B',
+                icon: '🚗'
+            },
+            ev_brake: {
+                id: 'ev_brake',
+                name: 'EV Brake wear emission',
+                nameEn: 'EV Brake wear',
+                color: '#4ECDC4',
+                icon: '🛞'
+            },
+            ev_tire: {
+                id: 'ev_tire',
+                name: 'EV Tire wear emission',
+                nameEn: 'EV Tire wear',
+                color: '#45B7D1',
+                icon: '🔘'
+            },
+            ev_road: {
+                id: 'ev_road',
+                name: 'EV Road wear emission',
+                nameEn: 'EV Road wear',
+                color: '#FFA07A',
+                icon: '🛣️'
+            },
+            ev_dust: {
+                id: 'ev_dust',
+                name: 'EV Resuspended road dust emission',
+                nameEn: 'EV Road dust',
+                color: '#98D8C8',
+                icon: '💨'
+            }
         };
+
+        // 重构后的多地图数据结构
+        let mapData = {
+            currentMapId: 'exhaust_pm',  // 当前选中的地图ID
+            maps: {
+                exhaust_pm: { countries: {}, notes: {} },
+                ev_brake: { countries: {}, notes: {} },
+                ev_tire: { countries: {}, notes: {} },
+                ev_road: { countries: {}, notes: {} },
+                ev_dust: { countries: {}, notes: {} }
+            }
+        };
+
         let currentCountry = null;
+
+        // 辅助函数：获取当前地图数据
+        function getCurrentMapData() {
+            return mapData.maps[mapData.currentMapId];
+        }
 
         // ==================== 初始化 ====================
         function init() {
@@ -655,6 +869,12 @@
 
             checkConfig();
             console.log('✅ checkConfig() 完成');
+
+            // 初始化地图切换UI和颜色
+            updateMapSwitcherUI();
+            const currentMapConfig = MAP_CONFIG[mapData.currentMapId];
+            updateMapColors(currentMapConfig.color);
+            console.log('✅ 地图切换UI初始化完成');
 
             updateStats();
             console.log('✅ updateStats() 完成');
@@ -815,30 +1035,40 @@
             if (!supabaseClient) return;
 
             try {
-                // 订阅国家变化
+                // 订阅国家变化 - 只订阅当前地图的数据
                 const countriesChannel = supabaseClient
                     .channel('countries-channel')
                     .on('postgres_changes',
-                        { event: '*', schema: 'public', table: 'countries' },
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'countries',
+                            filter: `map_id=eq.${mapData.currentMapId}`  // 关键：按map_id过滤
+                        },
                         (payload) => handleCountryChange(payload)
                     )
                     .subscribe((status) => {
                         if (status === 'SUBSCRIBED') {
-                            console.log('✅ 已订阅国家表变化');
+                            console.log('✅ 已订阅国家表变化（地图：', mapData.currentMapId, '）');
                             addActivity('已连接到实时协作服务器');
                         }
                     });
 
-                // 订阅笔记变化
+                // 订阅笔记变化 - 只订阅当前地图的数据
                 const notesChannel = supabaseClient
                     .channel('notes-channel')
                     .on('postgres_changes',
-                        { event: '*', schema: 'public', table: 'notes' },
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'notes',
+                            filter: `map_id=eq.${mapData.currentMapId}`  // 关键：按map_id过滤
+                        },
                         (payload) => handleNoteChange(payload)
                     )
                     .subscribe((status) => {
                         if (status === 'SUBSCRIBED') {
-                            console.log('✅ 已订阅笔记表变化');
+                            console.log('✅ 已订阅笔记表变化（地图：', mapData.currentMapId, '）');
                         }
                     });
 
@@ -849,22 +1079,60 @@
             }
         }
 
+        // 新增：重新订阅实时频道（切换地图时使用）
+        async function resubscribeRealtime() {
+            if (!supabaseClient || !isOnline) return;
+
+            // 取消所有现有订阅
+            realtimeChannels.forEach(channel => {
+                supabaseClient.removeChannel(channel);
+            });
+            realtimeChannels = [];
+
+            // 重新订阅当前地图的数据
+            await initRealtimeSync();
+        }
+
         function handleCountryChange(payload) {
-            const { eventType, new: newRecord } = payload;
+            const { eventType, new: newRecord, old: oldRecord } = payload;
+
+            // 确保是当前地图的数据
+            if (newRecord && newRecord.map_id !== mapData.currentMapId) {
+                return;
+            }
+            if (oldRecord && oldRecord.map_id !== mapData.currentMapId) {
+                return;
+            }
+
+            const currentMap = getCurrentMapData();
 
             if (eventType === 'INSERT' || eventType === 'UPDATE') {
                 if (newRecord && newRecord.is_active) {
-                    mapData.countries[newRecord.country_code] = newRecord;
+                    currentMap.countries[newRecord.country_code] = newRecord;
                     const path = document.getElementById(newRecord.country_code);
                     if (path) {
                         path.classList.add('active');
+                        // 应用颜色
+                        if (newRecord.color) {
+                            path.style.fill = newRecord.color;
+                        }
                         addActivity(`${newRecord.country_name} 被点亮了`);
                     }
                 } else {
-                    delete mapData.countries[newRecord.country_code];
+                    delete currentMap.countries[newRecord.country_code];
                     const path = document.getElementById(newRecord.country_code);
                     if (path) {
                         path.classList.remove('active');
+                        path.style.fill = '';
+                    }
+                }
+            } else if (eventType === 'DELETE') {
+                if (oldRecord) {
+                    delete currentMap.countries[oldRecord.country_code];
+                    const path = document.getElementById(oldRecord.country_code);
+                    if (path) {
+                        path.classList.remove('active');
+                        path.style.fill = '';
                     }
                 }
             }
@@ -874,19 +1142,37 @@
         }
 
         function handleNoteChange(payload) {
-            const { eventType, new: newRecord } = payload;
+            const { eventType, new: newRecord, old: oldRecord } = payload;
+
+            // 确保是当前地图的数据
+            if (newRecord && newRecord.map_id !== mapData.currentMapId) {
+                return;
+            }
+            if (oldRecord && oldRecord.map_id !== mapData.currentMapId) {
+                return;
+            }
+
+            const currentMap = getCurrentMapData();
 
             if (eventType === 'INSERT') {
-                if (!mapData.notes[newRecord.country_code]) {
-                    mapData.notes[newRecord.country_code] = [];
+                if (!currentMap.notes[newRecord.country_code]) {
+                    currentMap.notes[newRecord.country_code] = [];
                 }
-                mapData.notes[newRecord.country_code].unshift(newRecord);
+                currentMap.notes[newRecord.country_code].unshift(newRecord);
 
                 const author = newRecord.author_name || '有人';
                 addActivity(`${author} 添加了笔记`);
 
                 if (currentCountry && currentCountry.code === newRecord.country_code) {
                     displayCountryNotes(currentCountry.code);
+                }
+            } else if (eventType === 'DELETE') {
+                if (oldRecord && currentMap.notes[oldRecord.country_code]) {
+                    const notes = currentMap.notes[oldRecord.country_code];
+                    const index = notes.findIndex(n => n.id === oldRecord.id);
+                    if (index > -1) {
+                        notes.splice(index, 1);
+                    }
                 }
             }
 
@@ -899,39 +1185,49 @@
             if (!supabaseClient) return;
 
             try {
-                // 加载国家数据
+                const currentMap = getCurrentMapData();
+
+                // 加载当前地图的国家数据
                 const { data: countries } = await supabaseClient
                     .from('countries')
-                    .select('*');
+                    .select('*')
+                    .eq('map_id', mapData.currentMapId);  // 添加map_id过滤
 
                 if (countries) {
                     countries.forEach(country => {
                         if (country.is_active) {
-                            mapData.countries[country.country_code] = country;
+                            currentMap.countries[country.country_code] = country;
                             const path = document.getElementById(country.country_code);
-                            if (path) path.classList.add('active');
+                            if (path) {
+                                path.classList.add('active');
+                                // 应用颜色
+                                if (country.color) {
+                                    path.style.fill = country.color;
+                                }
+                            }
                         }
                     });
                 }
 
-                // 加载笔记数据
+                // 加载当前地图的笔记数据
                 const { data: notes } = await supabaseClient
                     .from('notes')
                     .select('*')
+                    .eq('map_id', mapData.currentMapId)  // 添加map_id过滤
                     .order('created_at', { ascending: false });
 
                 if (notes) {
                     notes.forEach(note => {
-                        if (!mapData.notes[note.country_code]) {
-                            mapData.notes[note.country_code] = [];
+                        if (!currentMap.notes[note.country_code]) {
+                            currentMap.notes[note.country_code] = [];
                         }
-                        mapData.notes[note.country_code].push(note);
+                        currentMap.notes[note.country_code].push(note);
                     });
                 }
 
                 updateStats();
                 displayNotes();
-                console.log('✅ 已从云端加载数据');
+                console.log('✅ 已从云端加载当前地图的数据');
 
             } catch (error) {
                 console.error('从数据库加载数据失败:', error);
@@ -984,39 +1280,55 @@
         }
 
         async function toggleCountry(code, name) {
-            const isActive = !!mapData.countries[code];
+            const currentMap = getCurrentMapData();
+            const mapConfig = MAP_CONFIG[mapData.currentMapId];
+            const isActive = !!currentMap.countries[code];
 
             if (isActive) {
                 // 取消点亮
-                delete mapData.countries[code];
-                document.getElementById(code).classList.remove('active');
+                delete currentMap.countries[code];
+                const path = document.getElementById(code);
+                if (path) {
+                    path.classList.remove('active');
+                    path.style.fill = ''; // 清除内联颜色样式
+                }
 
                 if (isOnline) {
-                    // 更新数据库
+                    // 更新数据库 - 添加map_id过滤
                     await supabaseClient.from('countries')
-                        .update({ country_code: code, is_active: false });
-                    addActivity(`取消了 ${name}`);
+                        .update({ is_active: false })
+                        .eq('country_code', code)
+                        .eq('map_id', mapData.currentMapId);
+                    addActivity(`在 ${mapConfig.nameEn} 中取消了 ${name}`);
                 }
 
             } else {
-                // 点亮
-                mapData.countries[code] = {
+                // 点亮 - 使用当前地图的颜色
+                currentMap.countries[code] = {
                     country_code: code,
                     country_name: name,
                     is_active: true,
+                    color: mapConfig.color, // 保存颜色
                     timestamp: new Date().toISOString()
                 };
-                document.getElementById(code).classList.add('active');
+
+                const path = document.getElementById(code);
+                if (path) {
+                    path.classList.add('active');
+                    path.style.fill = mapConfig.color; // 应用当前地图颜色
+                }
 
                 if (isOnline) {
-                    // 保存到数据库
+                    // 保存到数据库 - 添加map_id和color
                     await supabaseClient.from('countries')
                         .upsert({
                             country_code: code,
                             country_name: name,
-                            is_active: true
+                            is_active: true,
+                            map_id: mapData.currentMapId,
+                            color: mapConfig.color
                         });
-                    addActivity(`点亮了 ${name}`);
+                    addActivity(`在 ${mapConfig.nameEn} 中点亮了 ${name}`);
                 }
             }
 
@@ -1049,27 +1361,31 @@
                 return;
             }
 
+            const currentMap = getCurrentMapData();
+            const mapConfig = MAP_CONFIG[mapData.currentMapId];
+
             const note = {
                 country_code: currentCountry.code,
                 author_name: author || null,
                 content: content,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                map_id: mapData.currentMapId  // 添加map_id
             };
 
             // 保存到云端
             if (isOnline) {
                 try {
                     await supabaseClient.from('notes').insert(note);
-                    addActivity(`为 ${currentCountry.name} 添加了笔记`);
+                    addActivity(`在 ${mapConfig.nameEn} 中为 ${currentCountry.name} 添加了笔记`);
                 } catch (error) {
                     console.error('保存到云端失败:', error);
                     alert('❌ 保存失败：' + error.message);
                 }
             }
 
-            // 保存到本地
-            if (!mapData.notes[currentCountry.code]) {
-                mapData.notes[currentCountry.code] = [];
+            // 保存到本地 - 使用当前地图的notes
+            if (!currentMap.notes[currentCountry.code]) {
+                currentMap.notes[currentCountry.code] = [];
             }
 
             const localNote = {
@@ -1078,7 +1394,7 @@
                 date: new Date().toLocaleString('zh-CN')
             };
 
-            mapData.notes[currentCountry.code].unshift(localNote);
+            currentMap.notes[currentCountry.code].unshift(localNote);
 
             if (author) {
                 localStorage.setItem('authorName', author);
@@ -1097,7 +1413,8 @@
         // ==================== 显示函数 ====================
         function displayCountryNotes(code) {
             const container = document.getElementById('existingNotes');
-            const notes = mapData.notes[code] || [];
+            const currentMap = getCurrentMapData();
+            const notes = currentMap.notes[code] || [];
 
             if (notes.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">暂无笔记</p>';
@@ -1128,16 +1445,17 @@
                 return;
             }
 
-            const notes = mapData.notes[countryCode];
+            const currentMap = getCurrentMapData();
+            const notes = currentMap.notes[countryCode];
             if (!notes || !notes[noteIndex]) return;
 
             const noteToDelete = notes[noteIndex];
 
-            // 从本地数据中删除
-            mapData.notes[countryCode].splice(noteIndex, 1);
+            // 从本地数据中删除 - 使用当前地图的notes
+            currentMap.notes[countryCode].splice(noteIndex, 1);
 
-            if (mapData.notes[countryCode].length === 0) {
-                delete mapData.notes[countryCode];
+            if (currentMap.notes[countryCode].length === 0) {
+                delete currentMap.notes[countryCode];
             }
 
             // 如果在线，从数据库删除
@@ -1146,7 +1464,8 @@
                     await supabaseClient
                         .from('notes')
                         .delete()
-                        .eq('id', noteToDelete.id);
+                        .eq('id', noteToDelete.id)
+                        .eq('map_id', mapData.currentMapId);  // 添加map_id过滤
                     console.log('✅ 已从云端删除');
                 } catch (error) {
                     console.error('删除云端笔记失败:', error);
@@ -1168,8 +1487,10 @@
             const container = document.getElementById('activityList');
             const allNotes = [];
 
-            Object.keys(mapData.notes).forEach(code => {
-                mapData.notes[code].forEach(note => {
+            const currentMap = getCurrentMapData();
+
+            Object.keys(currentMap.notes).forEach(code => {
+                currentMap.notes[code].forEach(note => {
                     allNotes.push(note);
                 });
             });
@@ -1202,10 +1523,14 @@
         }
 
         function updateStats() {
-            document.getElementById('activeCount').textContent = Object.keys(mapData.countries).length;
+            const currentMap = getCurrentMapData();
 
+            // 更新已点亮国家数 - 使用当前地图的countries
+            document.getElementById('activeCount').textContent = Object.keys(currentMap.countries).length;
+
+            // 更新笔记总数 - 使用当前地图的notes
             let totalNotes = 0;
-            Object.values(mapData.notes).forEach(notes => {
+            Object.values(currentMap.notes).forEach(notes => {
                 totalNotes += notes.length;
             });
             document.getElementById('notesCount').textContent = totalNotes;
@@ -1232,17 +1557,115 @@
         }
 
         // ==================== 本地存储 ====================
+        // ==================== 数据迁移 ====================
+        function migrateOldData() {
+            // 检查是否需要迁移
+            const oldData = localStorage.getItem('worldMapData');
+            const newData = localStorage.getItem('multiMapData');
+
+            if (oldData && !newData) {
+                try {
+                    const parsed = JSON.parse(oldData);
+
+                    // 迁移到新结构
+                    const migratedData = {
+                        currentMapId: 'exhaust_pm',
+                        maps: {
+                            exhaust_pm: {
+                                countries: parsed.countries || {},
+                                notes: parsed.notes || {}
+                            },
+                            ev_brake: { countries: {}, notes: {} },
+                            ev_tire: { countries: {}, notes: {} },
+                            ev_road: { countries: {}, notes: {} },
+                            ev_dust: { countries: {}, notes: {} }
+                        }
+                    };
+
+                    // 保存新数据
+                    localStorage.setItem('multiMapData', JSON.stringify(migratedData));
+
+                    // 可选：删除旧数据（建议保留作为备份）
+                    // localStorage.removeItem('worldMapData');
+
+                    console.log('✅ 已迁移旧数据到新结构');
+
+                    return migratedData;
+
+                } catch (error) {
+                    console.error('❌ 数据迁移失败:', error);
+                    return null;
+                }
+            }
+
+            return null;
+        }
+
+        // ==================== 数据加载 ====================
         function loadLocalData() {
-            const saved = localStorage.getItem('worldMapData');
+            // 先尝试迁移旧数据
+            const migratedData = migrateOldData();
+
+            const saved = localStorage.getItem('multiMapData') || localStorage.getItem('worldMapData');
             if (saved) {
                 try {
-                    mapData = JSON.parse(saved);
+                    let parsed = JSON.parse(saved);
 
-                    // 恢复国家状态
-                    Object.keys(mapData.countries).forEach(code => {
+                    // 如果是旧数据结构（直接迁移），则使用新结构
+                    if (!parsed.maps) {
+                        parsed = {
+                            currentMapId: 'exhaust_pm',
+                            maps: {
+                                exhaust_pm: {
+                                    countries: parsed.countries || {},
+                                    notes: parsed.notes || {}
+                                },
+                                ev_brake: { countries: {}, notes: {} },
+                                ev_tire: { countries: {}, notes: {} },
+                                ev_road: { countries: {}, notes: {} },
+                                ev_dust: { countries: {}, notes: {} }
+                            }
+                        };
+                    }
+
+                    // 合并数据，保留默认结构
+                    mapData.maps = {
+                        exhaust_pm: parsed.maps?.exhaust_pm || { countries: {}, notes: {} },
+                        ev_brake: parsed.maps?.ev_brake || { countries: {}, notes: {} },
+                        ev_tire: parsed.maps?.ev_tire || { countries: {}, notes: {} },
+                        ev_road: parsed.maps?.ev_road || { countries: {}, notes: {} },
+                        ev_dust: parsed.maps?.ev_dust || { countries: {}, notes: {} }
+                    };
+
+                    // 恢复上次选中的地图
+                    mapData.currentMapId = parsed.currentMapId || 'exhaust_pm';
+
+                    // 恢复当前地图的国家状态
+                    const currentMap = getCurrentMapData();
+                    const currentMapConfig = MAP_CONFIG[mapData.currentMapId];
+
+                    Object.keys(currentMap.countries).forEach(code => {
                         const path = document.getElementById(code);
-                        if (path) path.classList.add('active');
+                        if (path) {
+                            path.classList.add('active');
+                            // 总是应用当前地图的颜色（即使是旧数据）
+                            const color = currentMap.countries[code].color || currentMapConfig.color;
+                            path.style.fill = color;
+                            // 更新保存的颜色为当前地图的颜色
+                            currentMap.countries[code].color = color;
+                        }
                     });
+
+                    // 更新UI（如果函数已定义）
+                    if (typeof updateMapSwitcherUI === 'function') {
+                        updateMapSwitcherUI();
+                    }
+
+                    // 更新颜色主题
+                    if (typeof updateMapColors === 'function') {
+                        updateMapColors(MAP_CONFIG[mapData.currentMapId].color);
+                    }
+
                 } catch (error) {
                     console.error('加载本地数据失败:', error);
                 }
@@ -1251,10 +1674,127 @@
 
         function saveLocalData() {
             try {
-                localStorage.setItem('worldMapData', JSON.stringify(mapData));
+                const dataToSave = {
+                    currentMapId: mapData.currentMapId,
+                    maps: mapData.maps
+                };
+                localStorage.setItem('multiMapData', JSON.stringify(dataToSave));
             } catch (error) {
                 console.error('保存本地数据失败:', error);
             }
+        }
+
+        // ==================== 地图切换功能 ====================
+        function updateMapSwitcherUI() {
+            // 更新当前地图指示器
+            const indicator = document.getElementById('currentMapIndicator');
+            const config = MAP_CONFIG[mapData.currentMapId];
+            if (indicator && config) {
+                indicator.innerHTML = `
+                    <span class="map-badge" style="background: ${config.color};">
+                        ${config.icon} ${config.nameEn}
+                    </span>
+                `;
+            }
+
+            // 更新标签激活状态
+            document.querySelectorAll('.map-tab').forEach(tab => {
+                if (tab.dataset.mapId === mapData.currentMapId) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+        }
+
+        function switchMap(mapId) {
+            if (mapId === mapData.currentMapId) return;
+
+            const mapConfig = MAP_CONFIG[mapId];
+            if (!mapConfig) {
+                console.error('无效的地图ID:', mapId);
+                return;
+            }
+
+            // 清除当前地图的视觉状态
+            const currentMap = getCurrentMapData();
+            Object.keys(currentMap.countries).forEach(code => {
+                const path = document.getElementById(code);
+                if (path) {
+                    path.classList.remove('active');
+                    path.style.fill = ''; // 清除颜色
+                }
+            });
+
+            // 切换到新地图
+            mapData.currentMapId = mapId;
+            const newMap = getCurrentMapData();
+
+            // 应用新地图的视觉状态和颜色
+            Object.keys(newMap.countries).forEach(code => {
+                const path = document.getElementById(code);
+                if (path) {
+                    path.classList.add('active');
+                    // 使用保存的颜色或当前地图的默认颜色
+                    const color = newMap.countries[code].color || mapConfig.color;
+                    path.style.fill = color;
+                }
+            });
+
+            // 更新UI和颜色主题
+            updateMapSwitcherUI();
+            updateMapColors(mapConfig.color);
+            updateStats();
+            displayNotes();
+
+            // 重新订阅实时数据（如果在线）
+            if (isOnline && typeof resubscribeRealtime === 'function') {
+                resubscribeRealtime();
+            }
+
+            // 保存状态
+            saveLocalData();
+
+            // 记录活动
+            if (typeof addActivity === 'function') {
+                addActivity(`切换到 ${mapConfig.name}`);
+            }
+
+            // 如果有打开的笔记模态框，刷新内容
+            if (currentCountry && typeof displayCountryNotes === 'function') {
+                displayCountryNotes(currentCountry.code);
+            }
+
+            console.log(`✅ 已切换到地图: ${mapConfig.name}`);
+        }
+
+        function updateMapColors(primaryColor) {
+            // 更新CSS变量，实现全局颜色主题切换
+            document.documentElement.style.setProperty('--map-primary-color', primaryColor);
+
+            // 更新状态指示器（会通过updateMapSwitcherUI自动更新）
+
+            // 可以添加更多需要随地图切换的UI元素
+            const mapTabs = document.querySelectorAll('.map-tab.active');
+            mapTabs.forEach(tab => {
+                tab.style.background = `linear-gradient(135deg, ${primaryColor} 0%, ${adjustColor(primaryColor, -20)} 100%)`;
+                tab.style.borderColor = primaryColor;
+            });
+        }
+
+        // 辅助函数：调整颜色亮度
+        function adjustColor(color, amount) {
+            const hex = color.replace('#', '');
+            const num = parseInt(hex, 16);
+            const r = (num >> 16) + amount;
+            const g = ((num >> 8) & 0x00FF) + amount;
+            const b = (num & 0x0000FF) + amount;
+            return '#' + (
+                0x1000000 +
+                (r < 255 ? (r < 1 ? 0 : r) : 255) * 0x10000 +
+                (g < 255 ? (g < 1 ? 0 : g) : 255) * 0x100 +
+                (b < 255 ? (b < 1 ? 0 : b) : 255)
+            ).toString(16).slice(1);
         }
 
         // ==================== 状态管理 ====================
@@ -1316,6 +1856,9 @@
         window.closeModal = closeModal;
         window.saveNote = saveNote;
         window.deleteNote = deleteNote;
+        window.switchMap = switchMap;
+        window.updateMapSwitcherUI = updateMapSwitcherUI;
+        window.updateMapColors = updateMapColors;
         window.handleCountryClick = handleCountryClick;
         window.handleCountryDoubleClick = handleCountryDoubleClick;
         window.toggleCountry = toggleCountry;
@@ -1377,6 +1920,5 @@
 </body>
 </html>
 
-</html>
 
 
